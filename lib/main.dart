@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+
+import 'img_source_dialog.dart';
 
 void main() {
   runApp(MyApp());
@@ -95,157 +98,217 @@ class _ImageToTextScreenState extends State<ImageToTextScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Image to Text'),
-        backgroundColor: Colors.blue,
+        title: const Text('Image to Text'),
+        backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           if (_selectedImage != null)
             IconButton(
-              onPressed: _clearAll,
-              icon: Icon(Icons.clear_all),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: _extractedText));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Text Copied')),
+                );
+              },
+              icon: const Icon(
+                Icons.copy,
+                color: Colors.black,
+                size: 24,
+              ),
             ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Image selection buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _pickImageFromGallery,
-                    icon: Icon(Icons.photo_library),
-                    label: Text('Galereyadan'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _pickImageFromCamera,
-                    icon: Icon(Icons.camera_alt),
-                    label: Text('Kameradan'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            SizedBox(height: 20),
-
-            // Selected image display
-            if (_selectedImage != null)
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
               Container(
-                height: 300,
+                height: 250,
+                width: double.infinity,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                        color: Colors.black,
+                        width: 1
+                    )
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    _selectedImage!,
-                    fit: BoxFit.contain,
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    if (_selectedImage == null) {
+                      return const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                          "Upload an image using the “+” button",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w400,
+                            fontSize: 18,
+                            color: Colors.black,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    } else {
+                      return Image.file(
+                        _selectedImage!,
+                        fit: BoxFit.cover,
+                      );
+                    }
+                  }
                 ),
               ),
 
-            if (_selectedImage == null)
+              const SizedBox(
+                height: 24,
+              ),
+
               Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey, style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(8),
+                constraints: const BoxConstraints(
+                  minHeight: 250,
+                  maxHeight: 250
                 ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.image,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Rasm tanlang',
+                width: double.infinity,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                      color: Colors.black,
+                      width: 1
+                  )
+                ),
+                child: Builder(
+                  builder: (context) {
+                    if (_isProcessing) {
+                      return const Center(
+                        child: Column(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              'Matn tanilmoqda...',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (_extractedText.isNotEmpty && !_isProcessing) {
+                      return SelectableText(
+                        _extractedText,
+                        style: const TextStyle(fontSize: 16),
+                      );
+                    } else {
+                      return const Text(
+                        "Click the “Scan Image” button to perform scan",
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            SizedBox(height: 20),
-
-            // Processing indicator
-            if (_isProcessing)
-              Center(
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Matn tanilmoqda...',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Extracted text display
-            if (_extractedText.isNotEmpty && !_isProcessing)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tanilgan matn:',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: SelectableText(
-                      _extractedText,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: _extractedText));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Matn nusxalandi')),
                       );
+                    }
+                  }
+                ),
+              ),
+
+              const SizedBox(
+                height: 24,
+              ),
+
+              Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      _clearAll();
                     },
-                    icon: Icon(Icons.copy),
-                    label: Text('Nusxalash'),
+                    style: ButtonStyle(
+                      backgroundColor: const WidgetStatePropertyAll(Colors.white),
+                      elevation: const WidgetStatePropertyAll(0),
+                      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8
+                      )),
+                      shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: const BorderSide(
+                          color: Colors.black,
+                          width: 1
+                        )
+                      ))
+                    ),
+                    child: const Text(
+                      "Clear image",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 32,),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      _showImgDialog(context);
+                    },
+                    style: ButtonStyle(
+                        backgroundColor: const WidgetStatePropertyAll(Color(0xffFFB347)),
+                        elevation: const WidgetStatePropertyAll(4),
+                        padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8
+                        )),
+                        shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                        ))
+                    ),
+                    child: const Text(
+                      "Scan image",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400
+                      ),
+                    ),
                   ),
                 ],
               ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+
+  void _showImgDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          contentPadding: EdgeInsets.zero,
+          content: ImgSourceDialog(
+            onTapCamera: () {
+              Navigator.of(context).pop();
+              _pickImageFromCamera();
+            },
+            onTapGallery: () {
+              Navigator.of(context).pop();
+              _pickImageFromGallery();
+            },
+          ),
+        );
+      },
     );
   }
 }
